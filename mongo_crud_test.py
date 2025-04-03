@@ -6,12 +6,12 @@ from pymongo import MongoClient
 from datetime import datetime
 from pathlib import Path
 
-DATA_DIR = "../../data"
-RESULTS_DIR = "../../results"
+DATA_DIR = "data"
+RESULTS_DIR = "results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-client = MongoClient("mongodb://admin:password@localhost:27017/")
-db = client["ecommerce_benchmark"]
+client = MongoClient("mongodb://admin:admin123@localhost:27017/")
+db = client["shop"]
 
 
 def load_csv(file):
