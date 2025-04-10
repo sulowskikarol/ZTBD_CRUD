@@ -11,8 +11,8 @@ RESULTS_DIR = "results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 MONGO_INSTANCES = {
-    "mongo4": "mongodb://admin:admin123@localhost:27017/",
-    "mongolatest": "mongodb://admin:admin123@localhost:27019/",
+    "mongo4": "mongodb://admin:admin123@localhost:27019/",
+    "mongolatest": "mongodb://admin:admin123@localhost:27017/",
 }
 
 
