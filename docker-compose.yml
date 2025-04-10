@@ -55,27 +55,22 @@ services:
             - '27017:27017'
         volumes:
             - mongodb_data:/data/db
-    redis:
-        image: redis:latest
-        container_name: redis
+    mongo4db_db:
+        image: mongo:4
+        container_name: mongo4db_db
         restart: always
-        ports:
-            - '6379:6379'
-        command:
-            [
-                'redis-server',
-                '--appendonly',
-                'yes',
-                '--requirepass',
-                'supersecret',
-            ]
         environment:
-            REDIS_PASSWORD: supersecret
+            MONGO_INITDB_DATABASE: shop
+            MONGO_INITDB_ROOT_USERNAME: admin
+            MONGO_INITDB_ROOT_PASSWORD: admin123
+        ports:
+            - "27018:27017"
         volumes:
-            - redis_data:/data
+            - mongo4db_data:/data/db
+
 volumes:
     postgres_data:
     mariadb_data:
     mysql_data:
     mongodb_data:
-    redis_data:
+    mongo4db_data:
