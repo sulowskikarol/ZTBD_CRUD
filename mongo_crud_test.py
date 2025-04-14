@@ -10,8 +10,10 @@ DATA_DIR = "data"
 RESULTS_DIR = "results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-client = MongoClient("mongodb://admin:admin123@localhost:27017/")
-db = client["shop"]
+MONGO_INSTANCES = {
+    "mongo4": "mongodb://admin:admin123@localhost:27019/",
+    "mongolatest": "mongodb://admin:admin123@localhost:27017/",
+}
 
 
 def load_csv(file):
@@ -67,13 +69,14 @@ def sample_values(data, field, count):
     return [item[field] for item in random.sample(data, min(count, len(data)))]
 
 
-def log_result(operation, entity, total_time, count):
+def log_result(operation, db_version, entity, total_time, count):
     avg_time = total_time / count if count else 0
-    with open(os.path.join(RESULTS_DIR, "mongo_results.csv"), "a", newline="") as f:
+    results_path = os.path.join(RESULTS_DIR, f"{db_version}_results.csv")
+    with open(results_path, "a", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
             operation,
-            "mongodb",
+            db_version,
             entity,
             round(total_time, 4),
             round(avg_time, 6),
@@ -88,39 +91,39 @@ def clear_collections():
     db.reviews.drop()
 
 
-def test_insert(users, products, orders, reviews):
+def test_insert(users, products, orders, reviews, db_version):
     print("📝 INSERT...")
-    log_result("insert", "users", measure_time(insert_data("users", users)), len(users))
-    log_result("insert", "products", measure_time(insert_data("products", products)), len(products))
-    log_result("insert", "orders", measure_time(insert_data("orders", orders)), len(orders))
-    log_result("insert", "reviews", measure_time(insert_data("reviews", reviews)), len(reviews))
+    log_result("insert", db_version, "users", measure_time(insert_data("users", users)), len(users))
+    log_result("insert", db_version, "products", measure_time(insert_data("products", products)), len(products))
+    log_result("insert", db_version, "orders", measure_time(insert_data("orders", orders)), len(orders))
+    log_result("insert", db_version, "reviews", measure_time(insert_data("reviews", reviews)), len(reviews))
 
 
-def test_read(users, products, orders, reviews):
+def test_read(users, products, orders, reviews, db_version):
     print("🔍 READ...")
-    log_result("read", "users", measure_time(read_data("users", "email", sample_values(users, "email", len(users) // 2))), len(users) // 2)
-    log_result("read", "products", measure_time(read_data("products", "name", sample_values(products, "name", len(products) // 2))), len(products) // 2)
-    log_result("read", "orders", measure_time(read_data("orders", "user_id", sample_values(orders, "user_id", len(orders) // 2))), len(orders) // 2)
-    log_result("read", "reviews", measure_time(read_data("reviews", "product_id", sample_values(reviews, "product_id", len(reviews) // 2))), len(reviews) // 2)
+    log_result("read", db_version, "users", measure_time(read_data("users", "email", sample_values(users, "email", len(users) // 2))), len(users) // 2)
+    log_result("read", db_version, "products", measure_time(read_data("products", "name", sample_values(products, "name", len(products) // 2))), len(products) // 2)
+    log_result("read", db_version, "orders", measure_time(read_data("orders", "user_id", sample_values(orders, "user_id", len(orders) // 2))), len(orders) // 2)
+    log_result("read", db_version, "reviews", measure_time(read_data("reviews", "product_id", sample_values(reviews, "product_id", len(reviews) // 2))), len(reviews) // 2)
 
 
-def test_update(users, products, orders, reviews):
+def test_update(users, products, orders, reviews, db_version):
     print("✏️ UPDATE...")
-    log_result("update", "users", measure_time(update_data("users", "email", sample_values(users, "email", len(users) // 2))), len(users) // 2)
-    log_result("update", "products", measure_time(update_data("products", "name", sample_values(products, "name", len(products) // 2))), len(products) // 2)
-    log_result("update", "orders", measure_time(update_data("orders", "id", sample_values(orders, "id", len(orders) // 2))), len(orders) // 2)
-    log_result("update", "reviews", measure_time(update_data("reviews", "id", sample_values(reviews, "id", len(reviews) // 2))), len(reviews) // 2)
+    log_result("update", db_version, "users", measure_time(update_data("users", "email", sample_values(users, "email", len(users) // 2))), len(users) // 2)
+    log_result("update", db_version, "products", measure_time(update_data("products", "name", sample_values(products, "name", len(products) // 2))), len(products) // 2)
+    log_result("update", db_version, "orders", measure_time(update_data("orders", "id", sample_values(orders, "id", len(orders) // 2))), len(orders) // 2)
+    log_result("update", db_version, "reviews", measure_time(update_data("reviews", "id", sample_values(reviews, "id", len(reviews) // 2))), len(reviews) // 2)
 
 
-def test_delete(users, products, orders, reviews):
+def test_delete(users, products, orders, reviews, db_version):
     print("🗑️ DELETE...")
-    log_result("delete", "users", measure_time(delete_data("users", "email", sample_values(users, "email", len(users) // 2))), len(users) // 2)
-    log_result("delete", "products", measure_time(delete_data("products", "name", sample_values(products, "name", len(products) // 2))), len(products) // 2)
-    log_result("delete", "orders", measure_time(delete_data("orders", "id", sample_values(orders, "id", len(orders) // 2))), len(orders) // 2)
-    log_result("delete", "reviews", measure_time(delete_data("reviews", "id", sample_values(reviews, "id", len(reviews) // 2))), len(reviews) // 2)
+    log_result("delete", db_version, "users", measure_time(delete_data("users", "email", sample_values(users, "email", len(users) // 2))), len(users) // 2)
+    log_result("delete", db_version, "products", measure_time(delete_data("products", "name", sample_values(products, "name", len(products) // 2))), len(products) // 2)
+    log_result("delete", db_version, "orders", measure_time(delete_data("orders", "id", sample_values(orders, "id", len(orders) // 2))), len(orders) // 2)
+    log_result("delete", db_version, "reviews", measure_time(delete_data("reviews", "id", sample_values(reviews, "id", len(reviews) // 2))), len(reviews) // 2)
 
 
-def run_benchmark():
+def run_benchmark(db_version):
     print("🔄 Ładowanie danych z CSV...")
     users = load_csv("users.csv")
     products = load_csv("products.csv")
@@ -134,18 +137,25 @@ def run_benchmark():
     print("🧹 Czyszczenie kolekcji MongoDB...")
     clear_collections()
 
-    print("📈 Rozpoczynanie testów...")
-    test_insert(users, products, orders, reviews)
-    test_read(users, products, orders, reviews)
-    test_update(users, products, orders, reviews)
-    test_delete(users, products, orders, reviews)
+    print(f"📈 Rozpoczynanie testów dla {db_version}...")
+    test_insert(users, products, orders, reviews, db_version)
+    test_read(users, products, orders, reviews, db_version)
+    test_update(users, products, orders, reviews, db_version)
+    test_delete(users, products, orders, reviews, db_version)
 
-    print("✅ Zakończono. Wyniki zapisane w 'results/mongo_results.csv'")
+    print(f"✅ Zakończono testy dla {db_version}")
 
 
 def main():
-    Path(os.path.join(RESULTS_DIR, "mongo_results.csv")).write_text("operation,database,entity,total_time,avg_time,record_count\n")
-    run_benchmark()
+    for db_version, uri in MONGO_INSTANCES.items():
+        print(f"\n🚀 Uruchamianie testów dla {db_version}")
+        global client, db
+        client = MongoClient(uri)
+        db = client["shop"]
+
+        Path(os.path.join(RESULTS_DIR, f"{db_version}_results.csv")).write_text("operation,database,entity,total_time,avg_time,record_count\n")
+
+        run_benchmark(db_version)
 
 
 if __name__ == "__main__":
