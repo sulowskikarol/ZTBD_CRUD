@@ -120,6 +120,10 @@ def test_read(cursor, result_dir, users, products, orders, reviews):
         (cursor.execute("SELECT * FROM products WHERE name = %s", (name,)), cursor.fetchall())
         for name in sample_values(products, "name", p_count)
     ]), p_count)
+    log_result(result_dir, "read", "products_by_id", measure_time(lambda: [
+        (cursor.execute("SELECT * FROM products WHERE id = %s", (pid,)), cursor.fetchall())
+        for pid in sample_values(products, "id", p_count)
+    ]), p_count)
     log_result(result_dir, "read", "orders", measure_time(lambda: [
         (cursor.execute("SELECT * FROM orders WHERE user_id = %s", (uid,)), cursor.fetchall())
         for uid in sample_values(orders, "user_id", o_count)
@@ -149,6 +153,10 @@ def test_update(cursor, result_dir, users, products, orders, reviews):
     log_result(result_dir, "update", "products", measure_time(lambda: [
         cursor.execute("UPDATE products SET stock = stock + 1 WHERE name = %s", (name,))
         for name in sample_values(products, "name", p_count)
+    ]), p_count)
+    log_result(result_dir, "update", "products_by_id", measure_time(lambda: [
+        cursor.execute("UPDATE products SET stock = stock + 1 WHERE id = %s", (pid,))
+        for pid in sample_values(products, "id", p_count)
     ]), p_count)
     log_result(result_dir, "update", "orders", measure_time(lambda: [
         cursor.execute("UPDATE orders SET status = 'Completed' WHERE id = %s", (oid,))
@@ -190,6 +198,11 @@ def test_delete(cursor, result_dir, users, products, orders, reviews, order_item
     log_result(result_dir, "delete", "products", measure_time(lambda: [
         cursor.execute("DELETE FROM products WHERE name = %s", (name,))
         for name in sample_values(products, "name", p_count)
+    ]), p_count)
+
+    log_result(result_dir, "delete", "products_by_id", measure_time(lambda: [
+        cursor.execute("DELETE FROM products WHERE id = %s", (pid,))
+        for pid in sample_values(products, "id", p_count)
     ]), p_count)
 
     log_result(result_dir, "delete", "users", measure_time(lambda: [
@@ -280,6 +293,29 @@ def test_complex_queries(cursor, result_dir):
             ORDER BY frequency DESC
             LIMIT 10
         '''), cursor.fetchall()
+    ]), 1)
+
+    # 7. Wyświetla tylko recenzje od użytkowników, którzy kupili dany produkt
+    log_result(result_dir, "complex", "join_with_comments", measure_time(lambda: [
+        cursor.execute('''
+            SELECT 
+                u.id AS user_id,
+                u.email,
+                o.id AS order_id,
+                o.order_date,
+                p.id AS product_id,
+                p.name AS product_name,
+                oi.quantity,
+                oi.price AS item_price,
+                r.rating,
+                r.comment
+            FROM users u
+            JOIN orders o ON u.id = o.user_id
+            JOIN order_items oi ON o.id = oi.order_id
+            JOIN products p ON oi.product_id = p.id
+            INNER JOIN reviews r ON r.product_id = oi.product_id AND r.user_id = o.user_id
+        '''),
+        cursor.fetchall()
     ]), 1)
 
 
