@@ -73,9 +73,14 @@ def prepare_products(products):
 
 
 def measure_time(func):
-    start = time.time()
-    func()
-    return time.time() - start
+    start = time.perf_counter()
+    try:
+        func()
+    except Exception as e:
+        print(f"❌ Błąd w func: {e}")
+        return 0.0
+    end = time.perf_counter()
+    return max(0.0, end - start)
 
 
 def insert_data(collection, data):
@@ -83,21 +88,22 @@ def insert_data(collection, data):
 
 
 def read_data(collection, field, values):
-    return lambda: [db[collection].find_one({field: val}) for val in values]
+    return lambda: [list(db[collection].find({field: val})) for val in values]
 
 
 def update_data(collection, field, values):
-    return lambda: [db[collection].update_one({field: val}, {"$set": {"updated_at": datetime.now(timezone.utc)}}) for val in values]
+    return lambda: [db[collection].update_many({field: val}, {"$set": {"updated_at": datetime.now(timezone.utc)}}) for val in values]
 
 
 def delete_data(collection, field, values):
-    return lambda: [db[collection].delete_one({field: val}) for val in values]
+    return lambda: [db[collection].delete_many({field: val}) for val in values]
 
 
-def sample_values(data, field, count):
+def sample_values(data, field, count, cast_fn=None):
     if count == 0:
         return []
-    return [item[field] for item in random.sample(data, min(count, len(data)))]
+    sample = random.sample(data, min(count, len(data)))
+    return [cast_fn(item[field]) if cast_fn else item[field] for item in sample]
 
 
 def log_result(operation, db_version, entity, total_time, count):
@@ -116,10 +122,31 @@ def log_result(operation, db_version, entity, total_time, count):
 
 
 def clear_collections():
+    print("🧹 Czyszczenie kolekcji MongoDB...")
+
     db.users.drop()
     db.products.drop()
     db.orders.drop()
     db.reviews.drop()
+
+def ensure_indexes():
+    print("📌 Tworzenie indeksów...")
+
+    db.users.create_index("email")
+
+    db.products.create_index("id")
+    db.products.create_index("name")
+    db.products.create_index("price")
+    db.products.create_index("stock")
+
+    db.orders.create_index("id")
+    db.orders.create_index("user_id")
+    db.orders.create_index("order_date")
+
+    db.reviews.create_index("id")
+    db.reviews.create_index("product_id")
+    db.reviews.create_index("user_id")
+    db.reviews.create_index("rating")
 
 
 def test_insert(users, products, orders, reviews, db_version):
@@ -134,18 +161,18 @@ def test_read(users, products, orders, reviews, db_version):
     print("🔍 READ...")
     log_result("read", db_version, "users", measure_time(read_data("users", "email", sample_values(users, "email", 1000))), 1000)
     log_result("read", db_version, "products", measure_time(read_data("products", "name", sample_values(products, "name", 1000))), 1000)
-    log_result("read", db_version, "products_by_id", measure_time(read_data("products", "id", sample_values(products, "id", 1000))), 1000)
-    log_result("read", db_version, "orders", measure_time(read_data("orders", "user_id", sample_values(orders, "user_id", 1000))), 1000)
-    log_result("read", db_version, "reviews", measure_time(read_data("reviews", "product_id", sample_values(reviews, "product_id", 1000))), 1000)
+    log_result("read", db_version, "products_by_id", measure_time(read_data("products", "id", sample_values(products, "id", 1000, int))), 1000)
+    log_result("read", db_version, "orders", measure_time(read_data("orders", "user_id", sample_values(orders, "user_id", 1000, int))), 1000)
+    log_result("read", db_version, "reviews", measure_time(read_data("reviews", "product_id", sample_values(reviews, "product_id", 1000, int))), 1000)
 
 
 def test_update(users, products, orders, reviews, db_version):
     print("✏️ UPDATE...")
     log_result("update", db_version, "users", measure_time(update_data("users", "email", sample_values(users, "email", 1000))), 1000)
     log_result("update", db_version, "products", measure_time(update_data("products", "name", sample_values(products, "name", 1000))), 1000)
-    log_result("update", db_version, "products_by_id", measure_time(update_data("products", "id", sample_values(products, "id", 1000))), 1000)
-    log_result("update", db_version, "orders", measure_time(update_data("orders", "id", sample_values(orders, "id", 1000))), 1000)
-    log_result("update", db_version, "reviews", measure_time(update_data("reviews", "id", sample_values(reviews, "id", 1000))), 1000)
+    log_result("update", db_version, "products_by_id", measure_time(update_data("products", "id", sample_values(products, "id", 1000, int))), 1000)
+    log_result("update", db_version, "orders", measure_time(update_data("orders", "id", sample_values(orders, "id", 1000, int))), 1000)
+    log_result("update", db_version, "reviews", measure_time(update_data("reviews", "id", sample_values(reviews, "id", 1000, int))), 1000)
 
 def test_complex_queries(db_version):
     print("🔍 COMPLEX QUERIES...")
@@ -258,9 +285,9 @@ def test_delete(users, products, orders, reviews, db_version):
     print("🗑️ DELETE...")
     log_result("delete", db_version, "users", measure_time(delete_data("users", "email", sample_values(users, "email", 500))), 500)
     log_result("delete", db_version, "products", measure_time(delete_data("products", "name", sample_values(products, "name", 500))), 500)
-    log_result("delete", db_version, "products_by_id", measure_time(delete_data("products", "id", sample_values(products, "id", 500))), 500)
-    log_result("delete", db_version, "orders", measure_time(delete_data("orders", "id", sample_values(orders, "id", 500))), 500)
-    log_result("delete", db_version, "reviews", measure_time(delete_data("reviews", "id", sample_values(reviews, "id", 500))), 500)
+    log_result("delete", db_version, "products_by_id", measure_time(delete_data("products", "id", sample_values(products, "id", 500, int))), 500)
+    log_result("delete", db_version, "orders", measure_time(delete_data("orders", "id", sample_values(orders, "id", 500, int))), 500)
+    log_result("delete", db_version, "reviews", measure_time(delete_data("reviews", "id", sample_values(reviews, "id", 500, int))), 500)
 
 
 def run_benchmark(db_version):
@@ -270,8 +297,8 @@ def run_benchmark(db_version):
     orders = prepare_orders(load_csv("orders.csv"), load_csv("order_items.csv"))
     reviews = prepare_reviews(load_csv("reviews.csv"))
 
-    print("🧹 Czyszczenie kolekcji MongoDB...")
     clear_collections()
+    ensure_indexes()
 
     print(f"📈 Rozpoczynanie testów dla {db_version}...")
     test_insert(users, products, orders, reviews, db_version)
